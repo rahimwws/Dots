@@ -1,5 +1,6 @@
 import React from "react";
 import { Svg, Path, SvgProps } from "react-native-svg";
+import { useUnistyles } from "react-native-unistyles";
 
 interface CalendarInfoProps extends SvgProps {
   size?: number;
@@ -8,13 +9,15 @@ interface CalendarInfoProps extends SvgProps {
 
 export const CalendarInfo: React.FC<CalendarInfoProps> = ({
   size = 24,
-  color = "#171717",
+  color,
   ...props
 }) => {
+  const { theme } = useUnistyles();
+  const finalColor = color || theme.colors.text;
   return (
     <Svg width={size} height={size} fill="none" viewBox="0 0 24 24" {...props}>
       <Path
-        stroke={color}
+        stroke={finalColor}
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth="1.5"

@@ -1,9 +1,18 @@
-import React, { useState } from "react";
-import { View, Text, Image } from "react-native";
+import React, { useMemo, useState, useEffect } from "react";
+import { View, Text, Pressable } from "react-native";
 import { GlassView } from "expo-glass-effect";
-import { SignatureDisplay, useSignatureStorage } from "@/shared/ui/Signature";
 import { SelectableText } from "@/shared/ui/SelectableText";
-import { MoodBottomSheet } from "@/shared/ui/MoodBottomSheet";
+import { TrueSheet } from "@lodev09/react-native-true-sheet";
+import * as Haptics from "expo-haptics";
+import {
+  StyleSheet,
+  withUnistyles,
+  useUnistyles,
+} from "react-native-unistyles";
+import { Popover } from "expo-ios-popover";
+import { CalendarInfo } from "@/shared/assets/icons/CalendarInfo";
+import { useMood } from "@/entities/mood";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type TasksPageProps = {
   width: number;
@@ -11,106 +20,289 @@ type TasksPageProps = {
   bottomInset: number;
 };
 
+const UniGlassView = withUnistyles(GlassView);
+
+const YearProgress = () => {
+  const { theme } = useUnistyles();
+
+  const { dayOfYear, daysInYear, daysLeft } = useMemo(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 0);
+    const diff = now.getTime() - start.getTime();
+    const oneDay = 1000 * 60 * 60 * 24;
+    const day = Math.floor(diff / oneDay);
+
+    // 2026 год не високосный
+    const daysInYear = 365;
+    const daysLeft = daysInYear - day;
+
+    return { dayOfYear: day, daysInYear, daysLeft };
+  }, []);
+
+  // Создаем сетку точек
+  const dots = useMemo(() => {
+    const dotsArray = [];
+
+    for (let i = 0; i < daysInYear; i++) {
+      const isPassed = i < dayOfYear;
+      dotsArray.push(
+        <View
+          key={i}
+          style={[
+            styles.dot,
+            {
+              backgroundColor: isPassed
+                ? theme.colors.text
+                : theme.colors.textSecondary + "30",
+            },
+          ]}
+        />
+      );
+    }
+
+    console.log(`Total dots created: ${dotsArray.length}`);
+    return dotsArray;
+  }, [dayOfYear, daysInYear, theme]);
+
+  return (
+    <View style={styles.yearProgressContainer}>
+      <View style={styles.dotsGrid}>{dots}</View>
+      <Text
+        style={[styles.daysLeftText, { color: theme.colors.textSecondary }]}
+      >
+        {daysLeft} days left
+      </Text>
+    </View>
+  );
+};
+
+const REGENERATE_KEY = "@quote_regenerated";
+
 export const TasksPage = ({
   width,
   pageHeight,
   bottomInset,
 }: TasksPageProps) => {
-  const { signature } = useSignatureStorage();
-  const [isBottomSheetVisible, setIsBottomSheetVisible] = useState(false);
+  const { theme } = useUnistyles();
+  const { todayMood } = useMood();
+  const [hasRegeneratedBefore, setHasRegeneratedBefore] = useState(true); // По умолчанию скрываем
+
+  const hasTodayMood = !!todayMood;
+
+  // Проверяем при монтировании, нажимал ли пользователь regenerate
+  useEffect(() => {
+    const checkRegenerateStatus = async () => {
+      try {
+        const value = await AsyncStorage.getItem(REGENERATE_KEY);
+        setHasRegeneratedBefore(value === "true");
+      } catch (error) {
+        console.error("Failed to check regenerate status:", error);
+      }
+    };
+
+    checkRegenerateStatus();
+  }, []);
 
   const handleCaptureMood = () => {
-    setIsBottomSheetVisible(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    TrueSheet.present("mood");
   };
 
-  const handleCloseBottomSheet = (isOpened: boolean) => {
-    setIsBottomSheetVisible(isOpened);
-  };
+  const handleRegenerate = async () => {
+    console.log("Quote regenerated!");
 
-  const handleContinue = (selectedTriggers: string[]) => {
-    console.log("Selected triggers:", selectedTriggers);
-    setIsBottomSheetVisible(false);
-    // Здесь можно добавить логику для обработки выбранных триггеров
+    // Сохраняем флаг что пользователь нажал regenerate
+    try {
+      await AsyncStorage.setItem(REGENERATE_KEY, "true");
+      setHasRegeneratedBefore(true);
+    } catch (error) {
+      console.error("Failed to save regenerate status:", error);
+    }
   };
-
   return (
     <View
-      style={{
-        width,
-        height: pageHeight,
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        paddingHorizontal: 20,
-        paddingTop: 90,
-        paddingBottom: bottomInset + 30,
-      }}
+      style={[
+        styles.container,
+        {
+          width,
+          height: pageHeight,
+          paddingBottom: bottomInset + 30,
+        },
+      ]}
     >
-      <View style={{ flex: 1 }}>
-        <SelectableText
-          text="The magic you've been looking for is in the work you're avoiding."
-          style={{
-            fontFamily: "is-r",
-            fontSize: 32,
-            textAlign: "center",
-            color: "#000",
-            marginBottom: 22,
-          }}
-          onRegenerate={() => {
-            console.log("Quote regenerated!");
-          }}
-        />
-        <SignatureDisplay signature={signature} width={250} height={150} />
-        <Image
-          source={require("@/shared/assets/images/arrow.png")}
-          style={{
-            width: 300,
-            height: 300,
-            position: "absolute",
-            bottom: 60,
-            left: -220,
-            transform: [{ rotate: "-10deg" }],
-          }}
-          resizeMode="contain"
-        />
-        <Text
-          style={{
-            fontFamily: "is-r",
-            fontSize: 22,
-            color: "#000",
-            textAlign: "right",
-            marginTop: 80,
-            marginLeft: 100,
-          }}
-        >
-          Just notice how today feels
-        </Text>
+      <View style={styles.content}>
+        <View style={styles.quoteContainer}>
+          <SelectableText
+            text="The magic you've been looking for is in the work you're avoiding."
+            style={styles.quoteText}
+            onRegenerate={handleRegenerate}
+          />
+        </View>
+        {!hasRegeneratedBefore && (
+          <View style={styles.infoRow}>
+            <Popover id="task" arrowEdge="trailing">
+              <Popover.Trigger>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.infoButton,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                  hitSlop={15}
+                >
+                  <CalendarInfo size={22} color={theme.colors.textQuaternary} />
+                </Pressable>
+              </Popover.Trigger>
+
+              <Popover.Content
+                style={{
+                  padding: 20,
+                  borderRadius: 16,
+                  maxWidth: 280,
+                }}
+              >
+                <Text style={styles.infoTitle}>AI Assistant</Text>
+                <Text style={styles.infoDescription}>
+                  This quote is generated by AI.
+                </Text>
+                <Text style={styles.infoAI}>
+                  Long Press the text to regenerate a new quote.
+                </Text>
+              </Popover.Content>
+            </Popover>
+          </View>
+        )}
+        <YearProgress />
       </View>
 
-      <GlassView
-        style={{
-          width: "90%",
-          borderRadius: 100,
-          backgroundColor: "#000",
-          alignItems: "center",
-          justifyContent: "center",
-          paddingVertical: 24,
-          marginTop: 22,
-        }}
+      {/* {hasTodayMood && (
+        <UniGlassView
+          style={styles.moodButton}
+          isInteractive
+          glassEffectStyle="clear"
+          onTouchStart={handleCaptureMood}
+        >
+          <Text style={styles.moodButtonText}>Capture your mood</Text>
+        </UniGlassView>
+      )} */}
+      <UniGlassView
+        style={styles.moodButton}
         isInteractive
         glassEffectStyle="clear"
         onTouchStart={handleCaptureMood}
       >
-        <Text style={{ fontFamily: "is-r", fontSize: 22, color: "#fff" }}>
-          Capture your mood
-        </Text>
-      </GlassView>
-
-      <MoodBottomSheet
-        visible={isBottomSheetVisible}
-        onClose={handleCloseBottomSheet}
-        onContinue={handleContinue}
-      />
+        <Text style={styles.moodButtonText}>Capture your mood</Text>
+      </UniGlassView>
     </View>
   );
 };
+
+const styles = StyleSheet.create((theme) => ({
+  container: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    paddingTop: 90,
+  },
+  infoRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    position: "absolute",
+    top: 80,
+    right: 0,
+  },
+  infoButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: theme.colors.text,
+    fontFamily: theme.fonts.primary,
+    marginBottom: 8,
+  },
+  infoDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: theme.colors.textSecondary,
+    fontFamily: theme.fonts.primary,
+  },
+  infoAI: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: theme.colors.text,
+    fontFamily: theme.fonts.primary,
+    marginTop: 8,
+  },
+  content: {
+    flex: 1,
+  },
+  quoteContainer: {
+    height: 150,
+    alignItems: "center",
+  },
+  quoteText: {
+    fontFamily: theme.fonts.primary,
+    fontSize: 32,
+    textAlign: "center",
+    color: theme.colors.text,
+  },
+  yearProgressContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+  },
+  dotsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    width: "100%",
+    gap: 10,
+  },
+  dot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  daysLeftText: {
+    fontFamily: theme.fonts.primary,
+    fontSize: 14,
+    textAlign: "center",
+    marginTop: 16,
+    letterSpacing: 0.5,
+  },
+  arrowImage: {
+    width: 300,
+    height: 300,
+    position: "absolute",
+    bottom: 60,
+    left: -220,
+    transform: [{ rotate: "-10deg" }],
+  },
+  noticeText: {
+    fontFamily: theme.fonts.primary,
+    fontSize: 22,
+    color: theme.colors.text,
+    textAlign: "right",
+    marginTop: 80,
+    marginLeft: 100,
+  },
+  moodButton: {
+    width: "90%",
+    borderRadius: theme.borderRadius.pill,
+    backgroundColor: theme.colors.buttonPrimary,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 24,
+    marginTop: 22,
+  },
+  moodButtonText: {
+    fontFamily: theme.fonts.primary,
+    fontSize: 22,
+    color: theme.colors.buttonPrimaryText,
+  },
+}));

@@ -1,5 +1,6 @@
 import React from "react";
 import { Svg, Path, SvgProps } from "react-native-svg";
+import { useUnistyles } from "react-native-unistyles";
 
 interface ProgressUpProps extends SvgProps {
   size?: number;
@@ -8,27 +9,29 @@ interface ProgressUpProps extends SvgProps {
 
 export const ProgressUp: React.FC<ProgressUpProps> = ({
   size = 24,
-  color = "#171717",
+  color,
   ...props
 }) => {
+  const { theme } = useUnistyles();
+  const finalColor = color || theme.colors.text;
   return (
     <Svg width={size} height={size} fill="none" viewBox="0 0 24 24" {...props}>
       <Path
-        stroke={color}
+        stroke={finalColor}
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth="1.5"
         d="m16.5 9.5-4.2 4.2-1.6-2.4-3.2 3.2"
       />
       <Path
-        stroke={color}
+        stroke={finalColor}
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth="1.5"
         d="M14.5 9.5h2v2"
       />
       <Path
-        stroke={color}
+        stroke={finalColor}
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth="1.5"

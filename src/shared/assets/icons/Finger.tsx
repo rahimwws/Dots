@@ -1,16 +1,20 @@
 import Svg, { Path } from "react-native-svg";
+import { useUnistyles } from "react-native-unistyles";
 
 export const FingerSvg = ({
   size = 18,
-  color = "#000",
+  color,
 }: {
   size?: number;
   color?: string;
 }) => {
+  const { theme } = useUnistyles();
+  const finalColor = color || theme.colors.textHint;
+  
   return (
     <Svg width={size} height={size} fill="none" viewBox="0 0 18 21">
       <Path
-        fill={color}
+        fill={finalColor}
         d="M15.38 6.75c-.437 0-.867.109-1.251.318a2.623 2.623 0 0 0-3.624-1.565V2.625a2.625 2.625 0 0 0-5.25 0v7.5l-.358-.575a2.626 2.626 0 0 0-4.542 2.637l.438.772C4.019 18.646 5.353 21 9.755 21a8.26 8.26 0 0 0 8.25-8.25V9.375A2.625 2.625 0 0 0 15.38 6.75Zm1.125 6a6.758 6.758 0 0 1-6.75 6.75c-3.527 0-4.485-1.688-7.657-7.283l-.44-.775v-.005a1.125 1.125 0 1 1 1.961-1.102l1.75 2.813a.75.75 0 0 0 1.386-.398V2.625a1.125 1.125 0 1 1 2.25 0V9a.75.75 0 1 0 1.5 0V7.875a1.125 1.125 0 1 1 2.25 0V9.75a.75.75 0 1 0 1.5 0v-.375a1.125 1.125 0 1 1 2.25 0v3.375Z"
       />
     </Svg>

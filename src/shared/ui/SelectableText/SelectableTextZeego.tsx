@@ -1,5 +1,10 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { Text, StyleSheet, TextStyle, Platform, View } from "react-native";
+import { Text, TextStyle, Platform, View } from "react-native";
+import {
+  StyleSheet,
+  useUnistyles,
+  withUnistyles,
+} from "react-native-unistyles";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -17,6 +22,8 @@ interface SelectableTextProps {
   onRegenerate?: () => void;
 }
 
+const UniText = withUnistyles(Animated.Text);
+
 const motivationalQuotes = [
   "The magic you've been looking for is in the work you're avoiding.",
   "Success is the sum of small efforts repeated day in and day out.",
@@ -29,12 +36,12 @@ const motivationalQuotes = [
   "Small steps every day lead to big changes over time.",
   "You are stronger than you think, braver than you believe.",
 ];
-
 export const SelectableText: React.FC<SelectableTextProps> = ({
   text: initialText,
   style,
   onRegenerate,
 }) => {
+  const { theme } = useUnistyles();
   const [text, setText] = useState(initialText);
   const [animationKey, setAnimationKey] = useState(0);
 
@@ -87,10 +94,10 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
     }));
 
     return (
-      <Animated.Text style={[textStyle, extraTextStyle, animatedStyle]}>
+      <UniText style={[textStyle, extraTextStyle, animatedStyle]}>
         {word}
         {!isLast ? " " : ""}
-      </Animated.Text>
+      </UniText>
     );
   };
 
@@ -167,10 +174,18 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
       >
         <ContextMenu.Preview>
           {() => (
-            <View style={styles.previewContainer}>
+            <View
+              style={[
+                styles.previewContainer,
+                { backgroundColor: theme.colors.background },
+              ]}
+            >
               <WordReveal
                 textStyle={style}
-                extraTextStyle={styles.previewText}
+                extraTextStyle={[
+                  styles.previewText,
+                  { color: theme.colors.text },
+                ]}
               />
             </View>
           )}
@@ -224,22 +239,21 @@ export const SelectableText: React.FC<SelectableTextProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create((theme) => ({
   container: {
     // Пустой контейнер для trigger
   },
   previewContainer: {
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    // paddingVertical: 16,
     borderRadius: 16,
-    shadowColor: "#000",
+    shadowColor: theme.colors.text,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 10,
   },
   previewText: {
-    color: "#000",
+    // Color will be set inline dynamically
   },
-});
+}));

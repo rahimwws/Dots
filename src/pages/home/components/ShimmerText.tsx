@@ -1,5 +1,6 @@
 import React from "react";
 import { Animated, Text } from "react-native";
+import { StyleSheet, useUnistyles } from "react-native-unistyles";
 
 type Segment = { text: string; bold: boolean };
 
@@ -12,6 +13,7 @@ export const ShimmerText = ({
 }: {
   text?: Segment[];
 }) => {
+  const { theme } = useUnistyles();
   const letters: { char: string; bold: boolean }[] = [];
   text.forEach((segment) => {
     segment.text
@@ -56,29 +58,23 @@ export const ShimmerText = ({
   }, [values]);
 
   return (
-    <Text
-      style={{
-        fontFamily: "is-r",
-        fontSize: 18,
-        color: "#9B9B9B",
-        flexDirection: "row",
-      }}
-    >
+    <Text style={styles.container}>
       {letters.map((item, idx) => {
         const color = values[idx].interpolate({
           inputRange: [0, 1],
-          outputRange: ["#9B9B9B", "#000000"],
+          outputRange: [theme.colors.textHint, theme.colors.text],
         });
 
         return (
           <Animated.Text
             key={`${item.char}-${idx}`}
-            style={{
-              color,
-              fontFamily: "is-r",
-              fontSize: 18,
-              fontWeight: item.bold ? "700" : "400",
-            }}
+            style={[
+              styles.letter,
+              {
+                color,
+                fontWeight: item.bold ? "700" : "400",
+              },
+            ]}
           >
             {item.char}
           </Animated.Text>
@@ -87,3 +83,16 @@ export const ShimmerText = ({
     </Text>
   );
 };
+
+const styles = StyleSheet.create((theme) => ({
+  container: {
+    fontFamily: theme.fonts.primary,
+    fontSize: 18,
+    color: theme.colors.textHint,
+    flexDirection: "row",
+  },
+  letter: {
+    fontFamily: theme.fonts.primary,
+    fontSize: 18,
+  },
+}));

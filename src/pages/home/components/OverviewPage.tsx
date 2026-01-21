@@ -1,33 +1,32 @@
 import React from "react";
-import { Animated, StyleSheet, Text, View } from "react-native";
+import { Animated, Text, View } from "react-native";
 import { TextWithIcons } from "@/ui/TextWithIcons";
 import { FingerSvg, ProgressUp } from "@/shared/assets";
 import { HomeCalendar } from "@/widgets/home-calendar";
 import { Divider, Host } from "@expo/ui/swift-ui";
-import { Layout } from "@/shared/ui/Layout";
+import { Layout } from "@/shared/ui";
 import { ShimmerText } from "./ShimmerText";
 import { TodayTasksOverview } from "./TodayTasksOverview";
 import { GlassView } from "expo-glass-effect";
 import { router } from "expo-router";
-import { TaskStatus, useTasks } from "@/shared/lib/tasks";
+import {
+  getTaskStatusForDate,
+  isTaskScheduledForDate,
+  useTasks,
+} from "@/entities/task";
+import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { useStreak } from "@/entities/streak";
+import { useUserName } from "@/entities/user";
 
 type OverviewPageProps = {
   arrowOffset: Animated.Value;
 };
 
 export const OverviewPage = ({ arrowOffset }: OverviewPageProps) => {
-  const { tasks } = useTasks();
+  const { theme } = useUnistyles();
+  const { tasks, completionsByKey } = useTasks();
+  const { currentStreak } = useStreak();
   const [selectedDate, setSelectedDate] = React.useState<string | undefined>();
-
-  const todayKey = React.useMemo(
-    () => new Date().toISOString().slice(0, 10),
-    []
-  );
-
-  const todayTasks = React.useMemo(
-    () => tasks.filter((task) => task.date === todayKey),
-    [tasks, todayKey]
-  );
 
   const handleDatePress = (dateKey: string) => {
     setSelectedDate(dateKey);
@@ -39,62 +38,57 @@ export const OverviewPage = ({ arrowOffset }: OverviewPageProps) => {
       { completed: number; total?: number; color?: string }
     > = {};
 
-    tasks.forEach((task) => {
-      const entry = progress[task.date] ?? { completed: 0, total: 0 };
-      entry.total = (entry.total ?? 0) + 1;
-      if (task.status === "done") {
-        entry.completed += 1;
+    const today = new Date();
+    const year = today.getUTCFullYear();
+    const month = today.getUTCMonth();
+    const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const dateKey = new Date(Date.UTC(year, month, day))
+        .toISOString()
+        .slice(0, 10);
+      const dayTasks = tasks.filter((task) =>
+        isTaskScheduledForDate(task, dateKey)
+      );
+
+      if (!dayTasks.length) {
+        continue;
       }
-      progress[task.date] = entry;
-    });
+
+      progress[dateKey] = {
+        total: dayTasks.length,
+        completed: dayTasks.filter(
+          (task) =>
+            getTaskStatusForDate(task, dateKey, completionsByKey) === "done"
+        ).length,
+      };
+    }
 
     return progress;
-  }, [tasks]);
+  }, [tasks, completionsByKey]);
+  const { name: userName } = useUserName();
 
   return (
     <Layout includeTopInset={false}>
       <GlassView
-        style={{
-          width: 50,
-          height: 50,
-          borderRadius: 100,
-          backgroundColor: "#000",
-          alignItems: "center",
-          justifyContent: "center",
-          alignSelf: "flex-end",
-        }}
+        style={styles.profileButton}
         isInteractive
         glassEffectStyle="clear"
         onTouchStart={() => {
           router.navigate("/profile");
         }}
       >
-        <Text style={{ fontFamily: "is-r", fontSize: 22, color: "#fff" }}>
-          Ra.
-        </Text>
+        <Text style={styles.profileButtonText}>{userName?.charAt(0).toUpperCase()}.</Text>
       </GlassView>
 
-      <View
-        style={{ flexDirection: "row", alignItems: "flex-end", marginTop: -50 }}
-      >
-        <Text style={{ fontFamily: "is-r", fontSize: 100, color: "#1F1F1F" }}>
-          17
-        </Text>
-        <Text
-          style={{
-            fontFamily: "is-r",
-            fontSize: 48,
-            paddingBottom: 18,
-            color: "#1F1F1F",
-          }}
-        >
-          days streak
+      <View style={styles.streakContainer}>
+        <Text style={styles.streakNumber}>{currentStreak}</Text>
+        <Text style={styles.streakText}>
+          {currentStreak === 1 ? " day streak" : "days streak"}
         </Text>
       </View>
 
-      <Host>
-        <Divider />
-      </Host>
+      <View style={styles.divider} />
 
       <TodayTasksOverview selectedDate={selectedDate} />
 
@@ -122,7 +116,7 @@ export const OverviewPage = ({ arrowOffset }: OverviewPageProps) => {
             ],
           }}
         >
-          <FingerSvg color="#9B9B9B" size={20} />
+          <FingerSvg color={theme.colors.textHint} size={20} />
         </Animated.View>
         <ShimmerText />
       </View>
@@ -130,15 +124,52 @@ export const OverviewPage = ({ arrowOffset }: OverviewPageProps) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create((theme) => ({
+  profileButton: {
+    position: "absolute",
+    right: 20,
+    zIndex: 10,
+    height: 50,
+    width: 50,
+    borderRadius: theme.borderRadius.pill,
+    backgroundColor: theme.colors.buttonPrimary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: theme.colors.border,
+  },
+  profileButtonText: {
+    fontFamily: theme.fonts.primary,
+    fontSize: 22,
+    color: theme.colors.textInverse,
+  },
+  streakContainer: {
+    marginTop: -24,
+    alignItems: "flex-end",
+    flexDirection: "row",
+    gap: 2,
+  },
+  streakNumber: {
+    fontFamily: theme.fonts.primary,
+    fontSize: 100,
+    color: theme.colors.text,
+  },
+  streakText: {
+    fontFamily: theme.fonts.primary,
+    fontSize: 38,
+    marginBottom: 18,
+    color: theme.colors.text,
+  },
   tasksContainer: {
     marginTop: 24,
     gap: 10,
   },
   greeting: {
-    fontFamily: "is-r",
+    fontFamily: theme.fonts.primary,
     fontSize: 22,
-    color: "#1F1F1F",
+    color: theme.colors.text,
   },
   summaryRow: {
     flexDirection: "row",
@@ -149,36 +180,36 @@ const styles = StyleSheet.create({
   taskCountPill: {
     paddingVertical: 6,
     paddingHorizontal: 16,
-    borderRadius: 999,
-    backgroundColor: "#1F1F1F",
+    borderRadius: theme.borderRadius.pill,
+    backgroundColor: theme.colors.buttonPrimary,
   },
   taskCountText: {
-    fontFamily: "is-r",
+    fontFamily: theme.fonts.primary,
     fontSize: 16,
-    color: "#FFFFFF",
+    color: theme.colors.buttonPrimaryText,
   },
   summaryText: {
-    fontFamily: "is-r",
+    fontFamily: theme.fonts.primary,
     fontSize: 16,
-    color: "#1F1F1F",
+    color: theme.colors.text,
   },
   popoverContent: {
     width: 260,
-    backgroundColor: "#fff",
+    backgroundColor: theme.colors.background,
     padding: 18,
-    borderRadius: 16,
+    borderRadius: theme.borderRadius.lg,
   },
   popoverTitle: {
     fontSize: 16,
-    fontWeight: "700",
-    color: "#1F1F1F",
+    fontWeight: "700" as const,
+    color: theme.colors.text,
     marginBottom: 12,
-    fontFamily: "is-r",
+    fontFamily: theme.fonts.primary,
   },
   popoverEmpty: {
     fontSize: 14,
-    color: "#9D9D9D",
-    fontFamily: "is-r",
+    color: theme.colors.textQuaternary,
+    fontFamily: theme.fonts.primary,
   },
   popoverRow: {
     flexDirection: "row",
@@ -190,12 +221,12 @@ const styles = StyleSheet.create({
   popoverTask: {
     flex: 1,
     fontSize: 14,
-    color: "#1F1F1F",
-    fontFamily: "is-r",
+    color: theme.colors.text,
+    fontFamily: theme.fonts.primary,
   },
   popoverStatus: {
     fontSize: 12,
-    color: "#5A5A5A",
-    fontFamily: "is-r",
+    color: theme.colors.textTertiary,
+    fontFamily: theme.fonts.primary,
   },
-});
+}));

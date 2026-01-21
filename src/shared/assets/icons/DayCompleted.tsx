@@ -1,5 +1,6 @@
 import React from "react";
 import { Svg, Path, SvgProps } from "react-native-svg";
+import { useUnistyles } from "react-native-unistyles";
 
 interface DayCompletedProps extends SvgProps {
   size?: number;
@@ -9,21 +10,24 @@ interface DayCompletedProps extends SvgProps {
 
 export const DayCompleted: React.FC<DayCompletedProps> = ({
   size = 24,
-  color = "#171717",
-  checkColor = "#FFFFFF",
+  color,
+  checkColor,
   ...props
 }) => {
+  const { theme } = useUnistyles();
+  const finalColor = color || theme.colors.calendarCheck;
+  const finalCheckColor = checkColor || theme.colors.calendarCheck;
   return (
     <Svg width={size} height={size} fill="none" viewBox="0 0 24 24" {...props}>
       <Path
-        stroke={checkColor}
+        stroke={finalCheckColor}
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth="1.5"
         d="m8.38 12 2.41 2.42 4.83-4.84"
       />
       <Path
-        stroke={color}
+        stroke={finalColor}
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth="1.5"
